@@ -52,6 +52,7 @@ type Bouncer interface {
 	SetIntervals(sp, lp, elp time.Duration) error
 	ButtonDownFunc(chan<- bool, machine.Pin) func(machine.Pin)
 	HandleInput(in <-chan bool, out chan<- PressLength)
+	Pin() *machine.Pin
 }
 
 // New returns a new Bouncer with the given pin, with a 50ms debounceInterval
@@ -63,6 +64,10 @@ func New(p machine.Pin) Bouncer {
 		longPress:        1500 * time.Millisecond,
 		extraLongPress:   3000 * time.Millisecond,
 	}
+}
+
+func (b *button) Pin() *machine.Pin {
+	return b.pin
 }
 
 // SetIntervals overwrites the button's fields shortPress, longPress, extraLongPress with passed-in durations
