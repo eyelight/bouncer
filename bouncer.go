@@ -50,7 +50,7 @@ type Bouncer interface {
 	Configure(func(machine.Pin)) error
 	SetDebounceInterval(time.Duration)
 	SetIntervals(sp, lp, elp time.Duration) error
-	ButtonDownFunc(chan<- bool, machine.Pin) func(machine.Pin)
+	ButtonDownFunc(chan<- bool, *machine.Pin) func(machine.Pin)
 	HandleInput(in <-chan bool, out chan<- PressLength)
 	Pin() *machine.Pin
 }
@@ -94,7 +94,7 @@ func (b *button) Configure(isr func(machine.Pin)) error {
 
 // ButtonDownFunc returns a function designed to be passed to Configure as the 'isr' param
 // channel 'ch' needs to be monitored by
-func (b *button) ButtonDownFunc(ch chan<- bool, p machine.Pin) func(machine.Pin) {
+func (b *button) ButtonDownFunc(ch chan<- bool, p *machine.Pin) func(machine.Pin) {
 	lastEvent := time.Now()
 	return func(machine.Pin) { // the inner function sends bools and resets the timer
 		if time.Now().Sub(lastEvent) > b.debounceInterval { // ignore 'bounces' until after b.debounceInterval
