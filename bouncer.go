@@ -60,9 +60,9 @@ func New(p machine.Pin) Bouncer {
 	return &button{
 		pin:              &p,
 		debounceInterval: 50 * time.Millisecond,
-		shortPress:       300 * time.Millisecond,
-		longPress:        1500 * time.Millisecond,
-		extraLongPress:   3000 * time.Millisecond,
+		shortPress:       50 * time.Millisecond,
+		longPress:        1000 * time.Millisecond,
+		extraLongPress:   2500 * time.Millisecond,
 	}
 }
 
