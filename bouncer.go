@@ -102,6 +102,7 @@ func (b *button) Configure(isr func(machine.Pin)) error {
 func (b *button) ButtonDownFunc(ch chan<- time.Time, p *machine.Pin) func(machine.Pin) {
 	println("ButtonDownFunc...")
 	lastEvent := time.Now()
+	ch <- lastEvent
 	return func(machine.Pin) { // the inner function sends bools and resets the timer
 		lastEvent = time.Now()
 		println("_")
