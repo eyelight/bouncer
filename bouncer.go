@@ -51,7 +51,7 @@ type Bouncer interface {
 	SetDebounceInterval(time.Duration)
 	SetIntervals(sp, lp, elp time.Duration) error
 	ButtonDownFunc(chan<- bool, *machine.Pin) func(machine.Pin)
-	HandleInput(in <-chan bool, out chan<- PressLength)
+	HandleInput(in <-chan bool, out1, out2 chan<- PressLength)
 	Pin() *machine.Pin
 }
 
@@ -86,6 +86,10 @@ func (b *button) SetIntervals(sp, lp, elp time.Duration) error {
 func (b *button) Configure(isr func(machine.Pin)) error {
 	b.pin.Configure(machine.PinConfig{Mode: machine.PinInputPullup})
 	err := b.pin.SetInterrupt(machine.PinFalling, isr)
+	println("Debounce:" + b.debounceInterval.String())
+	println("ShortPress:" + b.shortPress.String())
+	println("LongPress:" + b.longPress.String())
+	println("ExtraLongPress:" + b.extraLongPress.String())
 	if err != nil {
 		return errors.New("bouncer - could not set interrupt")
 	}
@@ -95,34 +99,42 @@ func (b *button) Configure(isr func(machine.Pin)) error {
 // ButtonDownFunc returns a function designed to be passed to Configure as the 'isr' param
 // channel 'ch' needs to be monitored by
 func (b *button) ButtonDownFunc(ch chan<- bool, p *machine.Pin) func(machine.Pin) {
+	println("ButtonDownFunc")
 	lastEvent := time.Now()
 	return func(machine.Pin) { // the inner function sends bools and resets the timer
 		if time.Now().Sub(lastEvent) > b.debounceInterval { // ignore 'bounces' until after b.debounceInterval
 			ch <- false
 			lastEvent = time.Now()
+			println("isr fired")
 		}
 	}
 }
 
 // HandleInput reads from channel in and writes to channel out
-func (b *button) HandleInput(in <-chan bool, out chan<- PressLength) {
-	s := <-in
+func (b *button) HandleInput(in <-chan bool, out1, out2 chan<- PressLength) {
 	for {
+		s := <-in
 		select {
 		case <-in:
+			println("HandleInput -> buttonDOWN!")
 			btnDown := time.Now()
 			btnUp := time.Now()
 			for s = b.pin.Get(); s == false; btnUp = time.Now() { // increment a timer for as long as the button is down
 				s = b.pin.Get()
 			} // continue when the pin reads 'true'
+			println("HandleInput -> buttonUP!")
 			if b.pin.Get() == true {
 				dur := btnUp.Sub(btnDown)
+				println("Down duration:" + dur.String())
 				if dur > b.extraLongPress {
-					out <- ExtraLongPress
+					out1 <- ExtraLongPress
+					out2 <- ExtraLongPress
 				} else if dur > b.longPress {
-					out <- LongPress
+					out1 <- LongPress
+					out2 <- LongPress
 				} else if dur > b.shortPress {
-					out <- ShortPress
+					out1 <- ShortPress
+					out2 <- ShortPress
 				} else {
 					println("button down duration shorter than shortPress; no action taken")
 				}
