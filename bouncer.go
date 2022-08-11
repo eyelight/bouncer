@@ -113,9 +113,8 @@ func (b *button) ButtonDownFunc(ch chan<- time.Time, p *machine.Pin) func(machin
 func (b *button) HandleInput(in <-chan time.Time, out1, out2 chan<- PressLength) {
 	println("HandleInput spawned...")
 	for {
-		btnDown := <-in
 		select {
-		case <-in:
+		case btnDown := <-in:
 			btnUp := time.Time{}
 			println("HandleInput -> buttonDOWN @ " + btnDown.String())
 			for { // increment a timer for as long as the button is down
