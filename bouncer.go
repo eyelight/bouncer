@@ -106,6 +106,7 @@ func (b *button) ButtonDownFunc(ch chan<- time.Time, p *machine.Pin) func(machin
 		lastEvent = time.Now()
 		println("_")
 		ch <- lastEvent
+		time.Sleep(b.debounceInterval)
 	}
 }
 
