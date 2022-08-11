@@ -114,6 +114,7 @@ func (b *button) ButtonDownFunc(ch chan<- time.Time, in <-chan bool, p *machine.
 
 // HandleInput reads from channel in and writes to channels out1 & out2
 func (b *button) HandleInput(in <-chan time.Time, stfu chan<- bool, out1, out2 chan<- PressLength) {
+	stfu <- false
 	println("HandleInput spawned...")
 	btnDown := <-in
 	for {
