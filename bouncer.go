@@ -103,6 +103,7 @@ func (b *button) ButtonDownFunc(ch chan<- time.Time, p *machine.Pin) func(machin
 	println("ButtonDownFunc...")
 	lastEvent := time.Now()
 	return func(machine.Pin) { // the inner function sends bools and resets the timer
+		println("_")
 		lastEvent = time.Now()
 		ch <- lastEvent
 	}
