@@ -86,10 +86,10 @@ func (b *button) SetIntervals(sp, lp, elp time.Duration) error {
 func (b *button) Configure(isr func(machine.Pin)) error {
 	b.pin.Configure(machine.PinConfig{Mode: machine.PinInputPullup})
 	err := b.pin.SetInterrupt(machine.PinFalling, isr)
-	println("Debounce:" + b.debounceInterval.String())
-	println("ShortPress:" + b.shortPress.String())
-	println("LongPress:" + b.longPress.String())
-	println("ExtraLongPress:" + b.extraLongPress.String())
+	println("Debounce: " + b.debounceInterval.String())
+	println("ShortPress: " + b.shortPress.String())
+	println("LongPress: " + b.longPress.String())
+	println("ExtraLongPress: " + b.extraLongPress.String())
 	if err != nil {
 		return errors.New("bouncer - could not set interrupt")
 	}
@@ -105,7 +105,7 @@ func (b *button) ButtonDownFunc(ch chan<- bool, p *machine.Pin) func(machine.Pin
 		if time.Now().Sub(lastEvent) > b.debounceInterval { // ignore 'bounces' until after b.debounceInterval
 			ch <- false
 			lastEvent = time.Now()
-			println("isr fired")
+			println("isr fired; lastevent @ " + lastEvent.String())
 		}
 	}
 }
