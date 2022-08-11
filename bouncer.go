@@ -50,8 +50,8 @@ type Bouncer interface {
 	Configure(func(machine.Pin)) error
 	SetDebounceInterval(time.Duration)
 	SetIntervals(sp, lp, elp time.Duration) error
-	ButtonDownFunc(chan<- bool, *machine.Pin) func(machine.Pin)
-	HandleInput(in <-chan bool, out1, out2 chan<- PressLength)
+	ButtonDownFunc(chan<- time.Time, *machine.Pin) func(machine.Pin)
+	HandleInput(in <-chan time.Time, out1, out2 chan<- PressLength)
 	Pin() *machine.Pin
 }
 
@@ -98,28 +98,29 @@ func (b *button) Configure(isr func(machine.Pin)) error {
 
 // ButtonDownFunc returns a function designed to be passed to Configure as the 'isr' param
 // channel 'ch' needs to be monitored by
-func (b *button) ButtonDownFunc(ch chan<- bool, p *machine.Pin) func(machine.Pin) {
+func (b *button) ButtonDownFunc(ch chan<- time.Time, p *machine.Pin) func(machine.Pin) {
 	println("ButtonDownFunc")
-	lastEvent := time.Now()
+	// lastEvent := time.Now()
 	return func(machine.Pin) { // the inner function sends bools and resets the timer
-		if time.Now().Sub(lastEvent) > b.debounceInterval { // ignore 'bounces' until after b.debounceInterval
-			ch <- false
-			lastEvent = time.Now()
-			println("isr fired; lastevent @ " + lastEvent.String())
+		now := time.Now()
+		// if time.Now().Sub(lastEvent) > b.debounceInterval { // ignore 'bounces' until after b.debounceInterval
+		if b.pin.Get() == false {
+			ch <- now
 		}
+		// lastEvent = time.Now()
+		// }
 	}
 }
 
 // HandleInput reads from channel in and writes to channel out
-func (b *button) HandleInput(in <-chan bool, out1, out2 chan<- PressLength) {
+func (b *button) HandleInput(in <-chan time.Time, out1, out2 chan<- PressLength) {
 	for {
-		s := <-in
 		select {
-		case <-in:
+		case btnDown := <-in:
+			// btnDown := time.Now()
 			println("HandleInput -> buttonDOWN!")
-			btnDown := time.Now()
 			btnUp := time.Now()
-			for s = b.pin.Get(); s == false; btnUp = time.Now() { // increment a timer for as long as the button is down
+			for s := b.pin.Get(); s == false; btnUp = time.Now() { // increment a timer for as long as the button is down
 				s = b.pin.Get()
 			} // continue when the pin reads 'true'
 			println("HandleInput -> buttonUP!")
