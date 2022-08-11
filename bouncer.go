@@ -115,6 +115,7 @@ func (b *button) HandleInput(in <-chan time.Time, out1, out2 chan<- PressLength)
 	println("HandleInput spawned...")
 	for {
 		select {
+		default:
 		case btnDown := <-in:
 			btnUp := time.Now()
 			println("	HandleInput -> buttonDOWN @ " + btnDown.String())
@@ -145,7 +146,6 @@ func (b *button) HandleInput(in <-chan time.Time, out1, out2 chan<- PressLength)
 			} else {
 				println("button down duration shorter than shortPress; no action taken")
 			}
-		default:
 		}
 	}
 }
