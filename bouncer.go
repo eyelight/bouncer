@@ -131,12 +131,15 @@ func (b *button) HandleInput(in <-chan time.Time, out1, out2 chan<- PressLength)
 
 			// send the signal
 			if dur >= b.extraLongPress {
+				println("	sending ExtraLongPress")
 				out1 <- ExtraLongPress
 				out2 <- ExtraLongPress
 			} else if dur < b.extraLongPress && dur >= b.longPress {
+				println("	sending LongPress")
 				out1 <- LongPress
 				out2 <- LongPress
 			} else if dur < b.longPress && dur >= b.shortPress {
+				println("	sending ShortPress")
 				out1 <- ShortPress
 				out2 <- ShortPress
 			} else {
