@@ -50,8 +50,8 @@ type Bouncer interface {
 	Configure(func(machine.Pin)) error
 	SetDebounceInterval(time.Duration)
 	SetIntervals(sp, lp, elp time.Duration) error
-	ButtonDownFunc(chan<- time.Time, <-chan bool, *machine.Pin) func(machine.Pin)
-	HandleInput(in <-chan time.Time, stfu chan<- bool, out1, out2 chan<- PressLength)
+	ButtonDownFunc(chan<- time.Time, *machine.Pin) func(machine.Pin)
+	HandleInput(in <-chan time.Time, out1, out2 chan<- PressLength)
 	Pin() *machine.Pin
 }
 
@@ -99,28 +99,23 @@ func (b *button) Configure(isr func(machine.Pin)) error {
 
 // ButtonDownFunc returns a function designed to be passed to Configure as the 'isr' param
 // channel 'ch' needs to be monitored by the routine that handles input (eg, HandleInput)
-func (b *button) ButtonDownFunc(ch chan<- time.Time, in <-chan bool, p *machine.Pin) func(machine.Pin) {
+func (b *button) ButtonDownFunc(ch chan<- time.Time, p *machine.Pin) func(machine.Pin) {
 	println("ButtonDownFunc...")
-	stfu := <-in
 	lastEvent := time.Now()
 	return func(machine.Pin) { // the inner function sends bools and resets the timer
 		lastEvent = time.Now()
-		if !stfu {
-			println("_")
-			ch <- lastEvent
-		}
+		println("_")
+		ch <- lastEvent
 	}
 }
 
 // HandleInput reads from channel in and writes to channels out1 & out2
-func (b *button) HandleInput(in <-chan time.Time, stfu chan<- bool, out1, out2 chan<- PressLength) {
-	stfu <- false
+func (b *button) HandleInput(in <-chan time.Time, out1, out2 chan<- PressLength) {
 	println("HandleInput spawned...")
-	btnDown := <-in
 	for {
+		btnDown := <-in
 		select {
 		case <-in:
-			stfu <- true
 			btnUp := time.Time{}
 			println("HandleInput -> buttonDOWN @ " + btnDown.String())
 			for { // increment a timer for as long as the button is down
@@ -147,7 +142,6 @@ func (b *button) HandleInput(in <-chan time.Time, stfu chan<- bool, out1, out2 c
 			} else {
 				println("button down duration shorter than shortPress; no action taken")
 			}
-			stfu <- false
 		default:
 		}
 	}
