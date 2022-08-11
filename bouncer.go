@@ -105,8 +105,8 @@ func (b *button) ButtonDownFunc(ch chan<- time.Time, p *machine.Pin) func(machin
 	return func(machine.Pin) { // the inner function sends times and resets the timer
 		lastEvent = time.Now()
 		println("_")
-		ch <- lastEvent
 		time.Sleep(b.debounceInterval)
+		ch <- lastEvent
 	}
 }
 
