@@ -109,15 +109,14 @@ func (b *button) ButtonDownFunc(ch chan<- time.Time, p *machine.Pin) func(machin
 	}
 }
 
-// HandleInput reads from channel in and writes to channels out1 & out2
+// HandleInput reads from channel in, samples the pin, and writes to channels out1 & out2
 func (b *button) HandleInput(in <-chan time.Time, out1, out2 chan<- PressLength) {
-	btnDown := <-in
 	println("HandleInput spawned...")
 	for {
 		select {
-		case <-in:
-			btnUp := time.Time{}
-			println("HandleInput -> buttonDOWN @ " + btnDown.String())
+		case btnDown := <-in:
+			btnUp := time.Now()
+			println("	HandleInput -> buttonDOWN @ " + btnDown.String())
 			for { // increment a timer for as long as the button is down
 				up := b.pin.Get()
 				if up == true { // continue when the pin reads 'true'
@@ -125,7 +124,7 @@ func (b *button) HandleInput(in <-chan time.Time, out1, out2 chan<- PressLength)
 					break
 				}
 			}
-			println("HandleInput -> buttonUP @ " + btnUp.String())
+			println("	HandleInput -> buttonUP @ " + btnUp.String())
 			dur := btnUp.Sub(btnDown)
 			println("Down duration:" + dur.String())
 
