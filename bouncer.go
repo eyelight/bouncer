@@ -150,22 +150,23 @@ func (b *button) RecognizeAndPublish() {
 			switch tr.s {
 			case false: // button is 'down'
 				if !awaitingCompletion { // if we were awaitng a new bounce sequence to begin
-					awaitingCompletion = true // let's look for 'up' signals now
-					btnDown = tr.t            // set the received time as the beginning of the sequence
-					break
+					btnDown = tr.t             // set the received time as the beginning of the sequence
+					dur = btnDown.Sub(btnDown) // duration should be zero at this point
+					awaitingCompletion = true  // let's look for 'up' signals now
+					continue
 				} else { // if we were awaiting the conclusion of a bounce sequence
-					break // ignore 'down' signal & reset the loop
+					continue // ignore 'down' signal & reset the loop
 				}
 			case true: // button is 'up'
 				if !awaitingCompletion { // if we were awaiting a new bounce sequence
-					break // ignore 'up' signals
+					continue // ignore 'up' signals
 				} else { // if we were awaiting the conclusion of a bounce sequence
 					if tr.t.Sub(btnDown) > b.debounceInterval { // if the interval between down & up is greater than debounceInterval
 						dur = tr.t.Sub(btnDown)    // use received 'up' time to calculate sequence duration
 						btnDown = time.Time{}      // reset button down time
 						awaitingCompletion = false // let's look for 'down' signals now
 					} else { // if debounce interval was not exceeded, wait for next button 'up'
-						break
+						continue
 					}
 				}
 			}
@@ -175,7 +176,7 @@ func (b *button) RecognizeAndPublish() {
 				if !b.quiet {
 					println(REPORT_BOUNCE)
 				}
-				break
+				continue
 			} else {
 				if !b.quiet {
 					println("Down duration " + dur.String())
