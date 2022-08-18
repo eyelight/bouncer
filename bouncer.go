@@ -30,8 +30,8 @@ import (
 )
 
 const (
-	ERROR_DEBOUNCE_TOO_SHORT  = "Debounces should be greater than 10ms"
-	ERROR_DEBOUNCE_TOO_LONG   = "Debounces should be shorter than 30ms"
+	ERROR_DEBOUNCE_TOO_SHORT  = "Debounces should probably be greater than 10ms"
+	ERROR_DEBOUNCE_TOO_LONG   = "Debounces should probably be shorter than 30ms"
 	ERROR_TIMES_MUST_ASCEND   = "Button press intervals must ascend in duration (sp, lp, elp)"
 	ERROR_INVALID_PRESSLENGTH = "PressLength not understood"
 )
