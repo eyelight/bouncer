@@ -72,7 +72,7 @@ type button struct {
 type Bouncer interface {
 	Configure() error
 	HandlePin(machine.Pin)
-	RecognizeAndPublish()
+	RecognizeAndPublish(tickerCh chan struct{})
 	Duration(PressLength) (time.Duration, error)
 	SetDebounceDuration(t time.Duration) error
 	SetPressDurations(sp, lp, elp time.Duration) error
@@ -136,34 +136,37 @@ func (b *button) HandlePin(machine.Pin) {
 // awaits completion of a buttonDown -> buttonUp sequence,
 // recognizes press length,
 // publishes the recognized press event to the button's output channel(s)
-func (b *button) RecognizeAndPublish() {
+func (b *button) RecognizeAndPublish(tickerCh chan struct{}) {
 	if !b.quiet {
 		println("RecognizeAndPublish spawned...")
 	}
-	awaitingCompletion := false // think about supporting a 'setup' mode invoked by holding button down upon power-on
+	ticks := 0
 	btnDown := time.Time{}
 	dur := btnDown.Sub(btnDown) // initial duration zero
 	for {
 		select {
+		case <-tickerCh:
+			if ticks > 0 {
+				ticks++
+			}
 		case tr := <-b.isrChan:
 			switch tr.s {
 			case false: // button is 'down'
-				if !awaitingCompletion { // if we were awaitng a new bounce sequence to begin
-					btnDown = tr.t             // set the received time as the beginning of the sequence
-					dur = btnDown.Sub(btnDown) // duration should be zero at this point
-					awaitingCompletion = true  // let's look for 'up' signals now
+				if ticks == 0 { // if we were awaitng a new bounce sequence to begin
+					ticks = 1
+					btnDown = tr.t // set the received time as the beginning of the sequence
 					continue
 				} else { // if we were awaiting the conclusion of a bounce sequence
 					continue // ignore 'down' signal & reset the loop
 				}
 			case true: // button is 'up'
-				if !awaitingCompletion { // if we were awaiting a new bounce sequence
-					continue // ignore 'up' signals
+				if ticks == 0 { // if we were awaiting a new bounce sequence to begin
+					continue // ignore 'up' signals until there is a down
 				} else { // if we were awaiting the conclusion of a bounce sequence
-					if tr.t.Sub(btnDown) > b.debounceInterval { // if the interval between down & up is greater than debounceInterval
-						dur = tr.t.Sub(btnDown)    // use received 'up' time to calculate sequence duration
-						btnDown = time.Time{}      // reset button down time
-						awaitingCompletion = false // let's look for 'down' signals now
+					if ticks >= 2 { // if the interval between down & up is greater than debounceInterval
+						dur = tr.t.Sub(btnDown) // use received 'up' time to calculate sequence duration
+						btnDown = time.Time{}   // reset button down time
+						ticks = 0               // let's look for 'down' signals now
 					} else { // if debounce interval was not exceeded, wait for next button 'up'
 						continue
 					}
@@ -196,10 +199,6 @@ func (b *button) RecognizeAndPublish() {
 						println(REPORT_SHORT_PRESS)
 					}
 					b.publish(ShortPress)
-				} else { // duration was between debounce & shortPress; do nothing
-					if !b.quiet {
-						println(REPORT_TOO_SHORT)
-					}
 				}
 			}
 		default: // don't block
