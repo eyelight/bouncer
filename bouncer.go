@@ -151,12 +151,15 @@ func (b *button) RecognizeAndPublish(tickerCh chan struct{}) {
 		select {
 		case <-tickerCh:
 			if ticks >= 1 {
-				ticks++
+				ticks += 1
 				if !b.quiet {
 					println("incrementing ticks -> " + strconv.FormatInt(int64(ticks), 10))
 				}
 			}
 		case tr := <-b.isrChan:
+			if !b.quiet {
+				println("button " + strconv.FormatBool(tr.s) + " at " + tr.t.String())
+			}
 			switch tr.s {
 			case true: // button is 'up'
 				if ticks == 0 { // if we were awaiting a new bounce sequence to begin
