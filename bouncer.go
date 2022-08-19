@@ -148,7 +148,6 @@ func (b *button) RecognizeAndPublish(tickerCh chan struct{}) {
 		case <-tickerCh:
 			if ticks > 0 {
 				ticks++
-				// println(strconv.FormatInt(int64(ticks), 10) + "ticks")
 			}
 		case tr := <-b.isrChan:
 			switch tr.s {
