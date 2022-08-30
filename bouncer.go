@@ -24,6 +24,7 @@ Recognizer -> RecognizeAndPublish()
 
 import (
 	"errors"
+	"strconv"
 	"strings"
 	"time"
 
@@ -283,10 +284,10 @@ func (b *button) StateString() string {
 	st.Grow(150)
 	st.WriteString(b.name)
 	st.WriteString(" - (Bouncer): ")
-	st.WriteByte(9) // tab
-	st.WriteString("Debounce Duration: ")
+	st.WriteString(strconv.FormatBool(b.pin.Get()))
+	st.WriteString("\nDebounce Duration: ")
 	st.WriteString(b.debounceInterval.String())
-	st.WriteByte(9)
+	st.WriteByte(9) // tab
 	st.WriteString("Short Press Duration: ")
 	st.WriteString(b.shortPress.String())
 	st.WriteByte(9)
