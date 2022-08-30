@@ -150,7 +150,7 @@ func (b *button) RecognizeAndPublish(tickerCh chan struct{}) {
 	for {
 		select {
 		case <-tickerCh:
-			if ticks > 0 {
+			if ticks >= 1 {
 				ticks += 1
 				if !b.quiet {
 					println("incrementing ticks -> " + strconv.FormatInt(int64(ticks), 10))
@@ -183,7 +183,7 @@ func (b *button) RecognizeAndPublish(tickerCh chan struct{}) {
 				}
 			case false: // button is 'down'
 				if ticks == 0 { // if we were awaitng a new bounce sequence to begin
-					ticks++        // set ticks to 1 so that ticks begins to increment with each received systick
+					ticks = 1      // set the ticks to 1 so that ticks begins to increment with each received systick
 					btnDown = tr.t // set the received time as the beginning of the sequence
 					continue       // reset the loop
 				} else { // if we were awaiting the conclusion of a bounce sequence
