@@ -37,11 +37,10 @@ const (
 	ERROR_TIMES_MUST_ASCEND   = "Button press intervals must ascend in duration (sp, lp, elp)"
 	ERROR_INVALID_PRESSLENGTH = "PressLength not understood"
 	ERROR_NO_OUTPUT_CHANNELS  = "New bouncer wasn't given any output channels"
-	REPORT_EXTRA_LONG_PRESS   = "	sent ExtraLongPress"
-	REPORT_LONG_PRESS         = "	sent LongPress"
-	REPORT_SHORT_PRESS        = "	sent ShortPress"
-	REPORT_TOO_SHORT          = "	duration between bounce & short press; no action taken"
-	REPORT_BOUNCE             = "	bounce detected; no action taken"
+	REPORT_EXTRA_LONG_PRESS   = "	recognized ExtraLongPress"
+	REPORT_LONG_PRESS         = "	recognized LongPress"
+	REPORT_SHORT_PRESS        = "	recognized ShortPress"
+	REPORT_BOUNCE             = "	recognized spurious bounce; no action taken"
 )
 
 type PressLength uint8
@@ -66,7 +65,7 @@ type button struct {
 	shortPress       time.Duration
 	longPress        time.Duration
 	extraLongPress   time.Duration
-	isrChan          chan Bounce        // channel published by the interrupt handler HandlePin & consumed by the recognizer RecognizeInput
+	isrChan          chan Bounce        // channel published by the interrupt handler HandlePin & consumed by the recognizer RecognizeAndPublish
 	outChans         []chan PressLength // various channels for each subscriber of this button's events
 }
 
@@ -147,7 +146,9 @@ func (b *button) RecognizeAndPublish(tickerCh chan struct{}) {
 	for {
 		select {
 		case <-tickerCh:
-			if ticks > 0 {
+			if ticks == 0 { // we aren't listening
+				continue
+			} else {
 				ticks += 1
 				if !b.quiet {
 					println("incrementing ticks -> " + strconv.FormatInt(int64(ticks), 10))
@@ -160,16 +161,17 @@ func (b *button) RecognizeAndPublish(tickerCh chan struct{}) {
 			switch tr.s {
 			case true: // button is 'up'
 				if ticks == 0 { // if we were awaiting a new bounce sequence to begin
-					continue // ignore 'up' signals & reset the loop
+					continue // ignore 'up' signal & reset the loop
 				} else { // if we were awaiting the conclusion of a bounce sequence
 					if ticks >= 2 { // if the interval between down & up is greater than debounceInterval
 						dur = tr.t.Sub(btnDown) // use received 'up' time to calculate sequence duration
-						btnDown = time.Time{}   // reset button down time
 						if !b.quiet {
 							println(strconv.FormatInt(int64(ticks), 10) + " ticks")
 						}
-						ticks = 0 // stop & reset ticks + look for new bounce sequence
-						// let's recognize & publish now
+						ticks = 0             // stop & reset ticks + look for new bounce sequence
+						btnDown = time.Time{} // reset button down time
+						// Recognize & publish to channel(s)
+						b.publish(b.recognize(dur))
 					} else { // if debounce interval was not exceeded
 						if !b.quiet {
 							println("ticks: " + strconv.FormatInt(int64(ticks), 10))
@@ -180,15 +182,13 @@ func (b *button) RecognizeAndPublish(tickerCh chan struct{}) {
 				}
 			case false: // button is 'down'
 				if ticks == 0 { // if we were awaitng a new bounce sequence to begin
-					ticks++        // set ticks to 1 so that ticks begins to increment with each received systick
+					ticks = 1      // set ticks to 1 so that ticks begins to increment with each received systick
 					btnDown = tr.t // set the received time as the beginning of the sequence
 					continue       // reset the loop
 				} else { // if we were awaiting the conclusion of a bounce sequence
 					continue // ignore 'down' signal & reset the loop
 				}
 			}
-			// Recognize & publish to channel(s)
-			b.publish(b.recognize(dur))
 			// default: // don't block
 		}
 	}
