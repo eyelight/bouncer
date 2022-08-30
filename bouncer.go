@@ -291,20 +291,20 @@ func (b *button) StateString() string {
 	st.WriteString(b.name)
 	st.WriteString(" - (Bouncer): ")
 	st.WriteString(strconv.FormatBool(b.pin.Get()))
-	st.WriteByte(10) // newline
-	st.WriteByte(9)  // tab
+	st.WriteByte(9)  // newline
+	st.WriteByte(10) // tab
 	st.WriteString("Debounce Duration: ")
 	st.WriteString(b.debounceInterval.String())
-	st.WriteByte(10)
 	st.WriteByte(9)
+	st.WriteByte(10)
 	st.WriteString("Short Press Duration: ")
 	st.WriteString(b.shortPress.String())
-	st.WriteByte(10)
 	st.WriteByte(9)
+	st.WriteByte(10)
 	st.WriteString("Long Press Duration: ")
 	st.WriteString(b.longPress.String())
-	st.WriteByte(10)
 	st.WriteByte(9)
+	st.WriteByte(10)
 	st.WriteString("Extra Long Press Duration: ")
 	st.WriteString(b.extraLongPress.String())
 	return st.String()
