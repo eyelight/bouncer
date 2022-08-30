@@ -192,7 +192,7 @@ func (b *button) RecognizeAndPublish(tickerCh chan struct{}) {
 			}
 			// Recognize & publish to channel(s)
 			b.publish(b.recognize(dur))
-			// default: // don't block
+		default: // don't block
 		}
 	}
 }
