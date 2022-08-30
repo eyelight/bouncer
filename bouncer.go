@@ -183,20 +183,26 @@ func (b *button) RecognizeAndPublish() {
 				}
 				// Recognize & publish to channel(s)
 				if dur >= b.extraLongPress { // duration was extraLongPress
+					for i := range b.outChans {
+						b.outChans[i] <- ExtraLongPress
+					}
 					if !b.quiet {
 						println(REPORT_EXTRA_LONG_PRESS)
 					}
-					b.publish(ExtraLongPress)
 				} else if dur < b.extraLongPress && dur >= b.longPress { // duration was longPress
+					for i := range b.outChans {
+						b.outChans[i] <- LongPress
+					}
 					if !b.quiet {
 						println(REPORT_LONG_PRESS)
 					}
-					b.publish(LongPress)
 				} else if dur < b.longPress && dur >= b.shortPress { // duration was shortPress
+					for i := range b.outChans {
+						b.outChans[i] <- ShortPress
+					}
 					if !b.quiet {
 						println(REPORT_SHORT_PRESS)
 					}
-					b.publish(ShortPress)
 				} else { // duration was between debounce & shortPress; do nothing
 					if !b.quiet {
 						println(REPORT_TOO_SHORT)
@@ -298,10 +304,4 @@ func (b *button) StateString() string {
 	st.WriteString("Extra Long Press Duration: ")
 	st.WriteString(b.extraLongPress.String())
 	return st.String()
-}
-
-func (b *button) publish(p PressLength) {
-	for i := range b.outChans {
-		b.outChans[i] <- p
-	}
 }
