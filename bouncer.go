@@ -143,7 +143,7 @@ func (b *button) RecognizeAndPublish() {
 	}
 	awaitingCompletion := false // think about supporting a 'setup' mode invoked by holding button down upon power-on
 	btnDown := time.Time{}
-	dur := btnDown.Sub(btnDown) // initial duration zero
+	btnUp := time.Time{}
 	for {
 		select {
 		case tr := <-b.isrChan:
@@ -161,16 +161,14 @@ func (b *button) RecognizeAndPublish() {
 					break // ignore 'up' signals
 				} else { // if we were awaiting the conclusion of a bounce sequence
 					if tr.t.Sub(btnDown) > b.debounceInterval { // if the interval between down & up is greater than debounceInterval
-						dur = tr.t.Sub(btnDown)    // use received 'up' time to calculate sequence duration
-						btnDown = time.Time{}      // reset button down time
 						awaitingCompletion = false // let's look for 'down' signals now
-					} else { // if debounce interval was not exceeded, wait for next button 'up'
-						break
+						btnUp = tr.t               // set the received tim as the end of the sequence
 					}
 				}
 			}
 
 			// calculate button-down duration
+			dur := btnUp.Sub(btnDown)
 			if dur >= b.debounceInterval { // if the sequence of bounces stayed in the expected order & duration is valid
 				if !b.quiet {
 					println("Down duration " + dur.String())
