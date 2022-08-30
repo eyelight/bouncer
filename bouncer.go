@@ -152,9 +152,6 @@ func (b *button) RecognizeAndPublish(tickerCh chan struct{}) {
 		case <-tickerCh:
 			if ticks >= 1 {
 				ticks++
-				if !b.quiet {
-					println("incrementing ticks -> " + strconv.FormatInt(int64(ticks), 10))
-				}
 			}
 		case tr := <-b.isrChan:
 			switch tr.s {
@@ -172,7 +169,6 @@ func (b *button) RecognizeAndPublish(tickerCh chan struct{}) {
 						// let's recognize & publish now
 					} else { // if debounce interval was not exceeded
 						if !b.quiet {
-							println("ticks: " + strconv.FormatInt(int64(ticks), 10))
 							println(REPORT_BOUNCE)
 						}
 						continue // wait for next button 'up' & reset the loop
