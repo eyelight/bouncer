@@ -45,7 +45,7 @@ const (
 	ExtraLongPress
 )
 
-type Bounce struct {
+type bounce struct {
 	t time.Time // time at pin.Get()
 	s bool      // output of pin.Get()
 }
@@ -58,7 +58,7 @@ type button struct {
 	shortPress       time.Duration
 	longPress        time.Duration
 	extraLongPress   time.Duration
-	isrChan          chan Bounce        // channel published by the interrupt handler HandlePin & consumed by the recognizer RecognizeInput
+	isrChan          chan bounce        // channel published by the interrupt handler HandlePin & consumed by the recognizer RecognizeInput
 	outChans         []chan PressLength // various channels for each subscriber of this button's events
 }
 
@@ -71,14 +71,14 @@ type Bouncer interface {
 	SetPressDurations(sp, lp, elp time.Duration) error
 	Pin() *machine.Pin
 	Get() bool
-	ChISR() chan Bounce
+	ChISR() chan bounce
 	ChOut() []chan PressLength
 	Name() string
 	StateString() string
 }
 
 // New returns a new Bouncer with the given pin, with a 50ms debounceInterval
-func New(p machine.Pin, q bool, name string, isrChan chan Bounce, outs ...chan PressLength) Bouncer {
+func New(p machine.Pin, q bool, name string, isrChan chan bounce, outs ...chan PressLength) Bouncer {
 	chans := make([]chan PressLength, 0, 5)
 	for i := range outs {
 		chans = append(chans, outs[i])
@@ -117,7 +117,7 @@ func (b *button) Configure(isr func(machine.Pin)) error {
 // pushes state & time to a channel,
 // and it is up to the consumer to make sense of bounces
 func (b *button) HandlePin(machine.Pin) {
-	b.isrChan <- Bounce{t: time.Now(), s: b.pin.Get()}
+	b.isrChan <- bounce{t: time.Now(), s: b.pin.Get()}
 }
 
 // RecognizeAndPublish should be a goroutine;
@@ -246,7 +246,7 @@ func (b *button) Get() bool {
 }
 
 // ChISR returns the channel written by the ISR
-func (b *button) ChISR() chan Bounce {
+func (b *button) ChISR() chan bounce {
 	return b.isrChan
 }
 
