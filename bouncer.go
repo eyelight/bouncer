@@ -130,6 +130,9 @@ func (b *button) Configure() error {
 // and it is up to the consumer to make sense of bounces
 func (b *button) HandlePin(machine.Pin) {
 	b.isrChan <- Bounce{t: time.Now(), s: b.pin.Get()}
+	// if !b.quiet {
+	// 	println("...pin changed")
+	// }
 }
 
 // RecognizeAndPublish should be a goroutine; assumes pin is of mode InputPullup so 'false' is button=down
