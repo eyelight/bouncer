@@ -9,17 +9,15 @@ basic flow:
 Button/Pin setup:
 	- button mode is assumed to be InputPullup for now
 	- the interrupt fires on buttonDown & buttonUp events (pinFalling & pinRising)
-Interrupt Service Routine -> HandlePin()
-	- attach this to a pin as an interrupt handler
+Interrupt Service Routine:
 	- the ISR samples the pin & records the time of the pin sample, sending it to a channel
-Recognizer -> RecognizeAndPublish()
-	- run this as a goroutine
-	- the ISR channel is consumed here,
+Recognizer:
+	- the ISR channel is consumed by the recognizer,
 	- the recognizer awaits the completion of a buttonDown->buttonUp sequence
-	- each incoming bounce is evaluated for timing and ignored if not the polarity we currently await, or too short
-	- after the first buttonUp time that 'completes' the current buttonDown time, the button-down duration is computed
+	- each incoming bounce is evaluated for timing and ignored if short, or not the polarity we currently await
+	- when a valid buttonUp time 'completes' a stored buttonDown time, the button-down duration is computed
 	- the down duration is matched against values for short, long, and extra long presses
-	- if the duration matches, the button press length signal is published to output channels
+	- if the duration matches, the event is published to output channels
 */
 
 import (
@@ -36,12 +34,6 @@ const (
 	ERROR_DEBOUNCE_TOO_LONG   = "Debounces should probably be shorter than 30ms"
 	ERROR_TIMES_MUST_ASCEND   = "Button press intervals must ascend in duration (sp, lp, elp)"
 	ERROR_INVALID_PRESSLENGTH = "PressLength not understood"
-	ERROR_NO_OUTPUT_CHANNELS  = "New bouncer wasn't given any output channels"
-	REPORT_EXTRA_LONG_PRESS   = "	sent ExtraLongPress"
-	REPORT_LONG_PRESS         = "	sent LongPress"
-	REPORT_SHORT_PRESS        = "	sent ShortPress"
-	REPORT_TOO_SHORT          = "	duration between bounce & short press; no action taken"
-	REPORT_BOUNCE             = "	bounce detected; no action taken"
 )
 
 type PressLength uint8
@@ -85,15 +77,11 @@ type Bouncer interface {
 	StateString() string
 }
 
-// New returns a new Bouncer (or error) with the given pin, name & channels, with default intervals for
-// debounce, shortPress, longPress, extraLongPress; passing 'q' as false will spam the serial monitor
-func New(p machine.Pin, q bool, name string, isrChan chan Bounce, outs ...chan PressLength) (Bouncer, error) {
-	if len(outs) < 1 {
-		return nil, errors.New(ERROR_NO_OUTPUT_CHANNELS)
-	}
-	outChans := make([]chan PressLength, 0)
+// New returns a new Bouncer with the given pin, with a 50ms debounceInterval
+func New(p machine.Pin, q bool, name string, isrChan chan Bounce, outs ...chan PressLength) Bouncer {
+	chans := make([]chan PressLength, 0, 5)
 	for i := range outs {
-		outChans = append(outChans, outs[i])
+		chans = append(chans, outs[i])
 	}
 	return &button{
 		pin:              &p,
@@ -104,8 +92,8 @@ func New(p machine.Pin, q bool, name string, isrChan chan Bounce, outs ...chan P
 		longPress:        500 * time.Millisecond,
 		extraLongPress:   1971 * time.Millisecond,
 		isrChan:          isrChan,
-		outChans:         outChans,
-	}, nil
+		outChans:         chans,
+	}
 }
 
 // Configure sets the pin mode to InputPullup & assigns an interrupt handler to PinFalling events;
@@ -132,7 +120,7 @@ func (b *button) HandlePin(machine.Pin) {
 	b.isrChan <- Bounce{t: time.Now(), s: b.pin.Get()}
 }
 
-// RecognizeAndPublish should be a goroutine; assumes pin is of mode InputPullup so 'false' is button=down
+// RecognizeAndPublish should be a goroutine;
 // reads pin state & sample time from channel,
 // awaits completion of a buttonDown -> buttonUp sequence,
 // recognizes press length,
@@ -141,7 +129,7 @@ func (b *button) RecognizeAndPublish() {
 	if !b.quiet {
 		println("RecognizeAndPublish spawned...")
 	}
-	awaitingCompletion := false // think about supporting a 'setup' mode invoked by holding button down upon power-on
+	awaitingCompletion := true
 	btnDown := time.Time{}
 	btnUp := time.Time{}
 	for {
@@ -169,44 +157,41 @@ func (b *button) RecognizeAndPublish() {
 
 			// calculate button-down duration
 			dur := btnUp.Sub(btnDown)
-			if dur >= b.debounceInterval { // if the sequence of bounces stayed in the expected order & duration is valid
-				if !b.quiet {
-					println("Down duration " + dur.String())
-				}
+			if !b.quiet {
+				println("Down duration " + dur.String())
+			}
 
-				// Recognize & publish to channel(s)
-				if dur >= b.extraLongPress { // duration was extraLongPress
-					for i := range b.outChans {
-						b.outChans[i] <- ExtraLongPress
-					}
-					if !b.quiet {
-						println(REPORT_EXTRA_LONG_PRESS)
-					}
-				} else if dur < b.extraLongPress && dur >= b.longPress { // duration was longPress
-					for i := range b.outChans {
-						b.outChans[i] <- LongPress
-					}
-					if !b.quiet {
-						println(REPORT_LONG_PRESS)
-					}
-				} else if dur < b.longPress && dur >= b.shortPress { // duration was shortPress
-					for i := range b.outChans {
-						b.outChans[i] <- ShortPress
-					}
-					if !b.quiet {
-						println(REPORT_SHORT_PRESS)
-					}
-				} else { // duration was between debounce & shortPress; do nothing
-					if !b.quiet {
-						println(REPORT_TOO_SHORT)
-					}
+			// Recognize & publish to channel(s)
+			if dur >= b.extraLongPress {
+				for i := range b.outChans {
+					b.outChans[i] <- ExtraLongPress
 				}
-			} else { // duration was a bounce; do nothing
 				if !b.quiet {
-					println(REPORT_BOUNCE)
+					println("	sent ExtraLongPress")
+				}
+				break
+			} else if dur < b.extraLongPress && dur >= b.longPress {
+				for i := range b.outChans {
+					b.outChans[i] <- LongPress
+				}
+				if !b.quiet {
+					println("	sent LongPress")
+				}
+				break
+			} else if dur < b.longPress && dur >= b.shortPress {
+				for i := range b.outChans {
+					b.outChans[i] <- ShortPress
+				}
+				if !b.quiet {
+					println("	sent ShortPress")
+				}
+				break
+			} else {
+				if !b.quiet {
+					println("button down duration shorter than shortPress; no action taken")
 				}
 			}
-		default: // don't block
+		default:
 		}
 	}
 }
