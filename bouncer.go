@@ -146,6 +146,7 @@ func (b *button) RecognizeAndPublish(tickerCh chan struct{}) {
 	for {
 		select {
 		case <-tickerCh:
+			println("tick")
 			if ticks > 0 {
 				ticks++
 				// println(strconv.FormatInt(int64(ticks), 10) + "ticks")
