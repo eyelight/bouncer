@@ -71,7 +71,7 @@ type button struct {
 }
 
 type Bouncer interface {
-	Configure() error
+	Configure(func(machine.Pin)) error
 	HandlePin(machine.Pin)
 	RecognizeAndPublish()
 	Duration(PressLength) (time.Duration, error)
@@ -110,9 +110,9 @@ func New(p machine.Pin, q bool, name string, isrChan chan Bounce, outs ...chan P
 
 // Configure sets the pin mode to InputPullup & assigns an interrupt handler to PinFalling events;
 // 'isr' should probably be the inner function returned by ButtonDownFunc
-func (b *button) Configure() error {
+func (b *button) Configure(isr func(machine.Pin)) error {
 	b.pin.Configure(machine.PinConfig{Mode: machine.PinInputPullup})
-	err := b.pin.SetInterrupt(machine.PinFalling|machine.PinRising, b.HandlePin)
+	err := b.pin.SetInterrupt(machine.PinFalling|machine.PinRising, isr)
 	if err != nil {
 		return err
 	}
