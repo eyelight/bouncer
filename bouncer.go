@@ -24,7 +24,6 @@ Recognizer -> RecognizeAndPublish()
 
 import (
 	"errors"
-	"strconv"
 	"strings"
 	"time"
 
@@ -130,9 +129,6 @@ func (b *button) Configure() error {
 // and it is up to the consumer to make sense of bounces
 func (b *button) HandlePin(machine.Pin) {
 	b.isrChan <- Bounce{t: time.Now(), s: b.pin.Get()}
-	if !b.quiet {
-		println("...pin changed")
-	}
 }
 
 // RecognizeAndPublish should be a goroutine; assumes pin is of mode InputPullup so 'false' is button=down
@@ -144,47 +140,67 @@ func (b *button) RecognizeAndPublish(tickerCh chan struct{}) {
 	if !b.quiet {
 		println("RecognizeAndPublish spawned...")
 	}
-	ticks := 0                  // ticks will begin to increment when a button 'down' is registered
-	btnDown := time.Time{}      // btnDown is the beginning time of a button press event
+	ticks := 0
+	btnDown := time.Time{}
 	dur := btnDown.Sub(btnDown) // initial duration zero
 	for {
 		select {
 		case <-tickerCh:
-			if ticks >= 1 {
+			if ticks > 0 {
 				ticks++
 			}
 		case tr := <-b.isrChan:
 			switch tr.s {
+			case false: // button is 'down'
+				if ticks == 0 { // if we were awaitng a new bounce sequence to begin
+					ticks = 1
+					btnDown = tr.t // set the received time as the beginning of the sequence
+					continue
+				} else { // if we were awaiting the conclusion of a bounce sequence
+					continue // ignore 'down' signal & reset the loop
+				}
 			case true: // button is 'up'
 				if ticks == 0 { // if we were awaiting a new bounce sequence to begin
-					continue // ignore 'up' signals & reset the loop
+					continue // ignore 'up' signals until there is a down
 				} else { // if we were awaiting the conclusion of a bounce sequence
 					if ticks >= 2 { // if the interval between down & up is greater than debounceInterval
 						dur = tr.t.Sub(btnDown) // use received 'up' time to calculate sequence duration
 						btnDown = time.Time{}   // reset button down time
-						if !b.quiet {
-							println(strconv.FormatInt(int64(ticks), 10) + " ticks")
-						}
-						ticks = 0 // stop & reset ticks + look for new bounce sequence
-						// let's recognize & publish now
-					} else { // if debounce interval was not exceeded
-						if !b.quiet {
-							println(REPORT_BOUNCE)
-						}
-						continue // wait for next button 'up' & reset the loop
+						ticks = 0               // let's look for 'down' signals now
+					} else { // if debounce interval was not exceeded, wait for next button 'up'
+						continue
 					}
 				}
-			case false: // button is 'down'
-				if ticks == 0 { // if we were awaitng a new bounce sequence to begin
-					ticks = 1      // set the ticks to 1 so that ticks begins to increment with each received systick
-					btnDown = tr.t // set the received time as the beginning of the sequence
-					continue       // reset the loop
-				} else { // if we were awaiting the conclusion of a bounce sequence
-					continue // ignore 'down' signal & reset the loop
+			}
+
+			// break out of this if there's a bounce
+			if dur < b.debounceInterval {
+				if !b.quiet {
+					println(REPORT_BOUNCE)
+				}
+				continue
+			} else {
+				if !b.quiet {
+					println("Down duration " + dur.String())
+				}
+				// Recognize & publish to channel(s)
+				if dur >= b.extraLongPress { // duration was extraLongPress
+					if !b.quiet {
+						println(REPORT_EXTRA_LONG_PRESS)
+					}
+					b.publish(ExtraLongPress)
+				} else if dur < b.extraLongPress && dur >= b.longPress { // duration was longPress
+					if !b.quiet {
+						println(REPORT_LONG_PRESS)
+					}
+					b.publish(LongPress)
+				} else if dur < b.longPress && dur >= b.shortPress { // duration was shortPress
+					if !b.quiet {
+						println(REPORT_SHORT_PRESS)
+					}
+					b.publish(ShortPress)
 				}
 			}
-			// Recognize & publish to channel(s)
-			b.publish(b.recognize(dur))
 		default: // don't block
 		}
 	}
@@ -285,30 +301,4 @@ func (b *button) publish(p PressLength) {
 	for i := range b.outChans {
 		b.outChans[i] <- p
 	}
-}
-
-func (b *button) recognize(d time.Duration) PressLength {
-	if !b.quiet {
-		println("Down duration " + d.String())
-	}
-	if d >= b.extraLongPress { // duration was extraLongPress
-		if !b.quiet {
-			println(REPORT_EXTRA_LONG_PRESS)
-		}
-		return ExtraLongPress
-	} else if d < b.extraLongPress && d >= b.longPress { // duration was longPress
-		if !b.quiet {
-			println(REPORT_LONG_PRESS)
-		}
-		return LongPress
-	} else if d < b.longPress && d >= b.shortPress { // duration was shortPress
-		if !b.quiet {
-			println(REPORT_SHORT_PRESS)
-		}
-		return ShortPress
-	}
-	if !b.quiet {
-		println(REPORT_BOUNCE)
-	}
-	return Debounce
 }
