@@ -170,16 +170,12 @@ func (b *button) RecognizeAndPublish() {
 				}
 			}
 
-			// break out of this if there's a bounce
-			if dur < b.debounceInterval {
-				if !b.quiet {
-					println(REPORT_BOUNCE)
-				}
-				break
-			} else {
+			// calculate button-down duration
+			if dur >= b.debounceInterval { // if the sequence of bounces stayed in the expected order & duration is valid
 				if !b.quiet {
 					println("Down duration " + dur.String())
 				}
+
 				// Recognize & publish to channel(s)
 				if dur >= b.extraLongPress { // duration was extraLongPress
 					for i := range b.outChans {
@@ -206,6 +202,10 @@ func (b *button) RecognizeAndPublish() {
 					if !b.quiet {
 						println(REPORT_TOO_SHORT)
 					}
+				}
+			} else { // duration was a bounce; do nothing
+				if !b.quiet {
+					println(REPORT_BOUNCE)
 				}
 			}
 		default: // don't block
