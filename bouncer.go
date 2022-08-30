@@ -147,6 +147,7 @@ func (b *button) RecognizeAndPublish(tickerCh chan struct{}) {
 		select {
 		case <-tickerCh:
 			if ticks == 0 { // we aren't listening
+				btnDown = time.Time{} // ensure this is empty because occasionally it isn't
 				continue
 			} else {
 				ticks += 1
