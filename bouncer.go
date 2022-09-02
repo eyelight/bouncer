@@ -48,7 +48,7 @@ type bouncer struct {
 	longPress        time.Duration
 	extraLongPress   time.Duration
 	tickerCh         chan struct{}      // produced by sendTicks (relaying systick_handler ticks) -> consumed by RecognizeAndPublish (listening for ticks)
-	isrChan          chan Bounce        // produced by the pin interrupt handler HandlePin -> consumed by RecognizeAndPublish
+	isrChan          chan Bounce        // produced by the pin interrupt handler -> consumed by RecognizeAndPublish
 	outChans         []chan PressLength // various channels produced by RecognizeAndPublish -> consumed by subscribers of this bouncer's events
 }
 
@@ -59,8 +59,8 @@ type Bouncer interface {
 }
 
 // New returns a new Bouncer (or error) with the given pin, name & channels, with default durations for
-// debounce, shortPress, longPress, extraLongPress; passing 'q' as false will spam the serial monitor
-func New(p machine.Pin, tickerCh chan struct{}, isrChan chan Bounce, outs ...chan PressLength) (Bouncer, error) {
+// shortPress, longPress, extraLongPress
+func New(p machine.Pin, outs ...chan PressLength) (Bouncer, error) {
 	if len(outs) < 1 {
 		return nil, errors.New(ERROR_NO_OUTPUT_CHANNELS)
 	}
@@ -73,8 +73,8 @@ func New(p machine.Pin, tickerCh chan struct{}, isrChan chan Bounce, outs ...cha
 		shortPress:     22 * time.Millisecond,
 		longPress:      500 * time.Millisecond,
 		extraLongPress: 1971 * time.Millisecond,
-		tickerCh:       tickerCh,
-		isrChan:        isrChan,
+		tickerCh:       make(chan struct{}, 1),
+		isrChan:        make(chan Bounce, 1),
 		outChans:       outChans,
 	}, nil
 }
