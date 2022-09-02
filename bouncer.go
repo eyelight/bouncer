@@ -196,10 +196,10 @@ func sendTicks() {
 	}
 }
 
-// RelayTicks relays ticks from the SysTick_Handler to all bouncers;
+// Relay relays ticks from the SysTick_Handler to all bouncers;
 // and is intended to be called as a long-lived goroutine, and only once regarldess of how many bouncers you make.
 // The param tickCh is intended to be the same channel spammed by your SysTick_Handler
-func RelayTicks(tickCh chan struct{}) {
+func Relay(tickCh chan struct{}) {
 	for {
 		select {
 		case <-tickCh:
