@@ -9,8 +9,9 @@ import (
 )
 
 var (
-	systickCh = make(chan struct{}, 1)
-	outChan   = make(chan bouncer.PressLength, 1)
+	sysTicks = make(chan struct{}, 1)
+	outChan1 = make(chan bouncer.PressLength, 1)
+	outChan2 = make(chan bouncer.PressLength, 1)
 )
 
 func launchSystick() {
@@ -23,14 +24,14 @@ func launchSystick() {
 //go:export SysTick_Handler
 func handleSystick() {
 	select {
-	case systickCh <- struct{}{}:
+	case sysTicks <- struct{}{}:
 	default:
 	}
 }
 
 func main() {
 	launchSystick()
-	btn, err := bouncer.New(machine.D2, outChan)
+	btn, err := bouncer.New(machine.D2, outChan1, outChan2)
 	if err != nil {
 		println("couldn't make new bouncer")
 	}
@@ -44,24 +45,25 @@ func main() {
 	}
 
 	go btn.RecognizeAndPublish()
-	go reactToPresses(outChan)
-	go bouncer.RelayTicks(systickCh)
+	go reactToPresses("Alice", outChan1)
+	go reactToPresses("Bob", outChan2)
+	go bouncer.Relay(sysTicks)
 	select {}
 }
 
-func reactToPresses(ch chan bouncer.PressLength) {
+func reactToPresses(name string, ch chan bouncer.PressLength) {
 	for {
 		select {
 		case pl := <-ch:
 			switch pl {
 			case bouncer.ShortPress:
-				println("I got a short press")
+				println("%s got a short press", name)
 			case bouncer.LongPress:
-				println("I got a long press")
+				println("%s got a long press", name)
 			case bouncer.ExtraLongPress:
-				println("I got an extra long press")
+				println("%s got an extra long press", name)
 			case bouncer.Debounce:
-				println("I got a bounce")
+				println("%s got a bounce", name)
 			}
 		}
 	}
