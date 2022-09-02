@@ -31,7 +31,7 @@ func handleSystick() {
 
 func main() {
 	launchSystick()
-	btn, err := bouncer.New(machine.D2, outChan1, outChan2)
+	btn, err := bouncer.New(machine.D3, outChan1, outChan2)
 	if err != nil {
 		println("couldn't make new bouncer")
 	}
