@@ -57,13 +57,13 @@ func reactToPresses(name string, ch chan bouncer.PressLength) {
 		case pl := <-ch:
 			switch pl {
 			case bouncer.ShortPress:
-				println("%s got a short press", name)
+				println(name + " got a short press")
 			case bouncer.LongPress:
-				println("%s got a long press", name)
+				println(name + " got a long press")
 			case bouncer.ExtraLongPress:
-				println("%s got an extra long press", name)
+				println(name + " got an extra long press")
 			case bouncer.Debounce:
-				println("%s got a bounce", name)
+				println(name + " got a bounce")
 			}
 		}
 	}
