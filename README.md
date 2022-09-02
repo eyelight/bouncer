@@ -1,5 +1,5 @@
 # Bouncer 
-Bouncer is a button input handler package. It supports systick-based debouncing of button input and recognizes button-press-lengths of different durations
+Bouncer is a button input handler package for use with TinyGo on arm microcontrollers. It supports systick-based debouncing of button input and recognizes button-press-lengths of different durations
 
 Bouncer assumes you are using long-lived goroutines which listen for updates on a long-lived channel. At the end of a buttonDown -> buttonUp sequence, a Bouncer recognizes the duration of the press and sends this information to interested subscribers. When setting up your Bouncer(s), you can add an output channel for each of your interested subscribers.
 
