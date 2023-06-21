@@ -18,7 +18,7 @@ const (
 type PressLength uint8
 
 const (
-	Debounce PressLength = iota
+	Bounce PressLength = iota
 	ShortPress
 	LongPress
 	ExtraLongPress
@@ -36,11 +36,6 @@ type Config struct {
 	ExtraLong time.Duration
 }
 
-type Bounce struct {
-	t time.Time // time at pin.Get()
-	s bool      // output of pin.Get()
-}
-
 type bouncer struct {
 	pin              *machine.Pin
 	debounceInterval time.Duration
@@ -48,14 +43,14 @@ type bouncer struct {
 	longPress        time.Duration
 	extraLongPress   time.Duration
 	tickerCh         chan struct{}      // produced by sendTicks (relaying systick_handler ticks) -> consumed by RecognizeAndPublish (listening for ticks)
-	isrChan          chan Bounce        // produced by the pin interrupt handler -> consumed by RecognizeAndPublish
+	isrChan          chan bool          // produced by the pin interrupt handler -> consumed by RecognizeAndPublish
 	outChans         []chan PressLength // various channels produced by RecognizeAndPublish -> consumed by subscribers of this bouncer's events
 }
 
 type Bouncer interface {
 	Configure(Config) error
 	RecognizeAndPublish()
-	Duration(PressLength) (time.Duration, error)
+	Duration(PressLength) time.Duration
 }
 
 // New returns a new Bouncer (or error) with the given pin, name & channels, with default durations for
@@ -74,7 +69,7 @@ func New(p machine.Pin, outs ...chan PressLength) (Bouncer, error) {
 		longPress:      500 * time.Millisecond,
 		extraLongPress: 1971 * time.Millisecond,
 		tickerCh:       make(chan struct{}, 1),
-		isrChan:        make(chan Bounce, 1),
+		isrChan:        make(chan bool, 1),
 		outChans:       outChans,
 	}, nil
 }
@@ -83,7 +78,7 @@ func New(p machine.Pin, outs ...chan PressLength) (Bouncer, error) {
 func (b *bouncer) Configure(cfg Config) error {
 	b.pin.Configure(machine.PinConfig{Mode: machine.PinInputPullup})
 	err := b.pin.SetInterrupt(machine.PinFalling|machine.PinRising, func(machine.Pin) {
-		b.isrChan <- Bounce{t: time.Now(), s: b.pin.Get()}
+		b.isrChan <- b.pin.Get()
 	})
 	if err != nil {
 		return err
@@ -117,27 +112,25 @@ func (b *bouncer) RecognizeAndPublish() {
 			} else {
 				ticks += 1
 			}
-		case tr := <-b.isrChan:
-			switch tr.s {
+		case up := <-b.isrChan:
+			switch up {
 			case true: // button is 'up'
 				if ticks == 0 { // if we were awaiting a new bounce sequence to begin
 					continue // ignore 'up' signal & reset the loop
 				} else { // if we were awaiting the conclusion of a bounce sequence
 					if ticks >= 2 { // if the interval between down & up is greater than systick interval
-						dur = tr.t.Sub(btnDown) // use received 'up' time to calculate sequence duration
-						ticks = 0               // stop & reset ticks + look for new bounce sequence
-						btnDown = time.Time{}   // reset button down time
+						dur = time.Now().Sub(btnDown) // calculate sequence duration
+						ticks = 0                     // stop & reset ticks + look for new bounce sequence
+						btnDown = time.Time{}         // reset button down time
 						// Recognize & publish to channel(s)
 						b.publish(b.recognize(dur))
-					} else { // if debounce interval was not exceeded
-						continue // ignore & wait for next buttonUp
-					}
+					} // or ignore & await next buttonUp if debounce interval was not exceeded
 				}
 			case false: // button is 'down'
 				if ticks == 0 { // if we were awaitng a new bounce sequence to begin
-					ticks = 1      // set ticks to 1 so that ticks begins to increment with each received systick
-					btnDown = tr.t // set the received time as the beginning of the sequence
-					continue       // reset the loop
+					ticks = 1            // set ticks to 1 so that ticks begins to increment with each received systick
+					btnDown = time.Now() // set now as the beginning of the sequence
+					continue             // reset the loop
 				} // otherwise if we were awaiting the conclusion of a bounce sequence, ignore
 			}
 		}
@@ -145,18 +138,16 @@ func (b *bouncer) RecognizeAndPublish() {
 }
 
 // Duration returns the duration of the passed-in PressLength
-func (b *bouncer) Duration(l PressLength) (time.Duration, error) {
+func (b *bouncer) Duration(l PressLength) time.Duration {
 	switch l {
-	case Debounce:
-		return 0, nil
 	case ShortPress:
-		return b.shortPress, nil
+		return b.shortPress
 	case LongPress:
-		return b.longPress, nil
+		return b.longPress
 	case ExtraLongPress:
-		return b.extraLongPress, nil
+		return b.extraLongPress
 	default:
-		return 0, errors.New(ERROR_INVALID_PRESSLENGTH)
+		return 0
 	}
 }
 
@@ -178,7 +169,7 @@ func (b *bouncer) recognize(d time.Duration) PressLength {
 	} else if d < b.longPress && d >= b.shortPress { // duration was shortPress
 		return ShortPress
 	}
-	return Debounce // should be unreachable
+	return Bounce // should be unreachable
 }
 
 // addSysTickConsumer appends a channel to the pkg-level SysTickSubscriber slice.
@@ -196,10 +187,10 @@ func sendTicks() {
 	}
 }
 
-// Relay relays ticks from the SysTick_Handler to all bouncers;
+// Debounce relays ticks from the SysTick_Handler to all bouncers;
 // and is intended to be called as a long-lived goroutine, and only once regarldess of how many bouncers you make.
 // The param tickCh is intended to be the same channel spammed by your SysTick_Handler
-func Relay(tickCh chan struct{}) {
+func Debounce(tickCh chan struct{}) {
 	for {
 		select {
 		case <-tickCh:
