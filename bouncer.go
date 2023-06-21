@@ -50,6 +50,7 @@ type bouncer struct {
 type Bouncer interface {
 	Configure(Config) error
 	RecognizeAndPublish()
+	State() bool
 	Duration(PressLength) time.Duration
 }
 
@@ -94,6 +95,11 @@ func (b *bouncer) Configure(cfg Config) error {
 	}
 	addSysTickConsumer(b.tickerCh)
 	return nil
+}
+
+// State returns an on-demand measurement of the bouncer's pin
+func (b *bouncer) State() bool {
+	return b.pin.Get()
 }
 
 // RecognizeAndPublish should be a goroutine; reads pin state & sample time from channel,
