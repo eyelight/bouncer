@@ -5,15 +5,12 @@ Bouncer assumes you are using long-lived goroutines which listen for updates on 
 
 ### `New`
 - Pass an unconfigured pin here (Configure will reconfigure it to InputPullup anyway) 
-- With `...outs` you'll add one or more channels on which the bouncer will publish to your interested goroutines.
+- With `...outs` you'll add one or more channels on which the bouncer will publish `PressLength` events to your interested goroutines.
 
 ### `Configure`
 A custom duration for short, long, & extra long presses can be set in a `BouncerConfig` struct. To override default values, pass this to Configure, or pass an empty `BouncerConfig` to keep default values. The bouncer's pin is set to InputPullup
 
-In `Configure`, a function becomes the button's pin interrupt handler:
-  - fires on `PinRising` & `PinFalling` events
-  - it sends a `Bounce` to the Bouncer's `isrChan` channel, which is consumed by `RecognizeAndPublish`
-  - a `Bounce` contains a `bool` and a `time.Time` set to the pin's state and the time at which it was registered 
+In `Configure`, a function becomes the button's pin interrupt handler, firing on `PinRising` & `PinFalling`, sending the button's pin state to the Bouncer's `isrChan` channel, which is consumed by `RecognizeAndPublish`
 
 ### `RecognizeAndPublish` 
 
@@ -22,13 +19,13 @@ This is the button-press-length recognizer & publisher goroutine.
   - `tickerCh` – a systick from the `SysTick_Handler` was received from the relay
   - `isrChan` – a button interrupt event was received
 - Initially, `RecognizeAndPublish` is looking for a buttonDown event, and will ignore both systicks & buttonUp interrupts. 
-- After the first buttonDown event arrives, the received time is noted for later evaluation, and the function begins to increment `ticks` whenever a SysTick is received on `tickerCh`. 
+- After the first buttonDown event arrives, the time is noted for later evaluation, and the function begins to increment `ticks` whenever a SysTick is received on `tickerCh`. 
 - At this point, the function begins to expect buttonUp events; buttonDown events are ignored. 
-- Upon the first debounced buttonUp event, the received time is subtracted from the buttonDown time, resulting in a buttonDown duration. This duration is compared to the set of `PressLength` durations, thereby becoming recognized.
+- Upon the first debounced buttonUp event, the time is subtracted from the buttonDown time, resulting in a buttonDown duration. This duration is compared to the set of `PressLength` durations, thereby becoming recognized.
 - The resulting `PressLength` is published to all output channels
 
 ## Some plumbing in `main` to set up your SysTick_Handler
-A systick is a machine-level event to which we can attach our own handler. Since this is global in nature, it doesn't belong in this package; instead, you must set up a "SysTick_Handler" yourself and allow your Bouncer to consume its channel, indirectly through a relay (`Relay`) in order to fan-out the ticks to multiple bouncers.
+A systick is a machine-level event to which we can attach our own handler. Since this is global in nature, it doesn't belong in this package; instead, you must set up a "SysTick_Handler" yourself and allow your Bouncer to consume its channel, indirectly through a relay (`Debounce`) in order to fan-out the ticks to multiple bouncers. You'll set up the system timer, define your Systick handler, set up your bouncers, and then call Debounce to begin debouncing.
 
 ### First, set up the timer
 
@@ -60,8 +57,11 @@ func handleSystick() {
 }
 ```
 
-### `Relay` – Handling Multiple Bouncers
+### `Debounce` – Starting (Multiple) Bouncers
+Call Debounce in order to begin relaying the systicks to all bouncers you've set up. Pass it the channel to which your SysTick_Handler is sending.
 
-Since there is only one systick handler, we want to consume `tickCh` with another function which will fan out the tick across multiple interested channels. 
+```golang
+go bouncer.Debounce(tickCh)
+```
 
 Subscribing bouncers to the relay is done internally by the package – simply call the package-level function `Relay` as a goroutine and pass it the same channel `tickCh` produced by our systick handler. Do not consume `tickCh` in more than 1 place.

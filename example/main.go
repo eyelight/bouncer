@@ -9,9 +9,9 @@ import (
 )
 
 var (
-	sysTicks = make(chan struct{}, 1)
-	outChan1 = make(chan bouncer.PressLength, 1)
-	outChan2 = make(chan bouncer.PressLength, 1)
+	sysTicks  = make(chan struct{}, 1)
+	aliceChan = make(chan bouncer.PressLength, 1)
+	bobChan   = make(chan bouncer.PressLength, 1)
 )
 
 func launchSystick() {
@@ -31,7 +31,7 @@ func handleSystick() {
 
 func main() {
 	launchSystick()
-	btn, err := bouncer.New(machine.D3, outChan1, outChan2)
+	btn, err := bouncer.New(machine.D3, aliceChan, bobChan)
 	if err != nil {
 		println("couldn't make new bouncer")
 	}
@@ -45,9 +45,9 @@ func main() {
 	}
 
 	go btn.RecognizeAndPublish()
-	go reactToPresses("Alice", outChan1)
-	go reactToPresses("Bob", outChan2)
-	go bouncer.Relay(sysTicks)
+	go reactToPresses("Alice", aliceChan)
+	go reactToPresses("Bob", bobChan)
+	go bouncer.Debounce(sysTicks)
 	select {}
 }
 
@@ -62,7 +62,7 @@ func reactToPresses(name string, ch chan bouncer.PressLength) {
 				println(name + " got a long press")
 			case bouncer.ExtraLongPress:
 				println(name + " got an extra long press")
-			case bouncer.Debounce:
+			case bouncer.Bounce:
 				println(name + " got a bounce")
 			}
 		}
